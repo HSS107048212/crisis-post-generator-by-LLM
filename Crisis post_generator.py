@@ -1,26 +1,27 @@
-# ===== 1. 基本設定 =====
+# ===== 1. Basic Setup =====
 from openai import OpenAI
 import pandas as pd
 import time
-from tqdm.auto import tqdm  # 進度條
+from tqdm.auto import tqdm  # Progress bar
 
 api_key   = ""
 base_url  = "https://chat-ai.academiccloud.de/v1"
-model     = "qwen3-32b"      # 可替換為其他 GWDG 開放的模型
-temperature = 0.8                              # 創造力高低（可調）
+model     = "qwen3-32b"      # Can be replaced with other models available from GWDG
+temperature = 0.8            # Creativity level (adjustable)
 
 client = OpenAI(api_key=api_key, base_url=base_url)
 
-# ===== 2. 自訂函式：產生危機貼文 =====
+# ===== 2. Custom Function: Generate Crisis Post =====
 def generate_crisis_post(place: str,
                          crisis_event: str,
                          lat: float,
                          lon: float) -> str:
     """
-    依指定地點／事件／座標，呼叫 LLM 產生 3~4 句緊急社群貼文
-    回傳純文字。
+    Generate 3–4 short urgent social media sentences using the LLM
+    based on a specified place, event, and coordinates.
+    Returns plain text.
     """
-    # 這裡示範德文；可改成繁中或英文
+    # Example uses German; you can switch to Traditional Chinese or English
     prompt = (
         f"Du bist eine Hamburger*in, die gerade live in den sozialen Medien postet. "
         f"In der Nähe von {place} (Koordinaten: {lat:.5f}, {lon:.5f}) "
@@ -37,11 +38,11 @@ def generate_crisis_post(place: str,
 
     return response.choices[0].message.content.strip()
 
-# ===== 3. 範例 DataFrame (`df`) 應包含下列欄位 =====
-# df = pd.read_csv("your_locations.csv")  # 或任何方式載入
-# 必須具備：Latitude, Longitude, Place, Crisis_Event
+# ===== 3. Example DataFrame (`df`) should contain the following columns =====
+# df = pd.read_csv("your_locations.csv")  # Or load it any way you prefer
+# Required columns: Latitude, Longitude, Place, Crisis_Event
 
-# ===== 4. 實際批次呼叫並新增新欄位 =====
+# ===== 4. Run the generation in batch and add a new column =====
 posts = []
 for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
     try:
@@ -52,18 +53,17 @@ for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
             lon          = row["Longitude"],
         )
     except Exception as e:
-        # 若 API 超時或配額不足，可在這裡做重試或填入空字串
+        # If API times out or quota exceeded, handle it here (e.g., retry or assign an empty string)
         print(f"⚠️  Row {_}: {e}")
         post_text = ""
     posts.append(post_text)
-    time.sleep(0.4)     # 視情況調整，避免触發速度限制
+    time.sleep(0.4)  # Adjust as needed to avoid rate limits
 
 df["Crisis_Post"] = posts
 
-# Extract text after </think> because of qwen
+# Extract text after </think> (specific to Qwen model output)
 df["Crisis_Post"] = df["Crisis_Post"].apply(lambda x: x.split("</think>", 1)[-1] if isinstance(x, str) and "</think>" in x else x)
 
-
-# ===== 5. (可選) 儲存或檢視 =====
+# ===== 5. (Optional) Save or view =====
 df.to_excel("locations_with_posts.xlsx", index=False)
 df.head()
