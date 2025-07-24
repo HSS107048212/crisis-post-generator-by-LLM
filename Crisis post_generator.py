@@ -19,12 +19,22 @@ def generate_crisis_post(place: str,
     """
     Create 3–4 urgent first‑person sentences describing the crisis.
     """
-    prompt = (
-        f"You are a Hamburg resident live‑posting on social media. "
-        f"A {crisis_event} is unfolding near {place} "
-        f"(coordinates: {lat:.5f}, {lon:.5f}). "
-        f"Write 3–4 short, urgent sentences in the first person to describe the situation."
-    )
+    prompt = f"""
+        You are a Hamburg resident live‑posting on social media.
+        A {crisis_event} is unfolding near {place} (coordinates: {lat:.5f}, {lon:.5f}).
+        Write 3–4 short, urgent sentences in the first person to describe the situation.
+
+        During parsing, please follow German addresses into structured components:
+        1. "Street_or_Landmark": The most specific location such as a street name, square, or known landmark (e.g., "Achtern Born", "Waltershofer Damm", "Am Stadtrand").
+        2. "District_or_Suburb": The local subdistrict or neighborhood within the city (e.g., "Osdorf", "Sasel", "Waltershof").
+        3. "City_District": The city district name within larger cities such as Hamburg (e.g., "Altona", "Wandsbek", "Hamburg-Mitte").
+        4. "City": The main city name (e.g., "Hamburg").
+        5. "Postal_Code": The 5-digit German postal code (e.g., "22393", "21037").
+        6. "Country": Always return "Deutschland".
+
+        Example input:
+        "Redder, Sasel, Wandsbek, Hamburg, 22393, Deutschland" 
+        """
 
     response = client.chat.completions.create(
         model=model,
