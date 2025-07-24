@@ -15,24 +15,27 @@ client = OpenAI(api_key=api_key, base_url=base_url)
 def generate_crisis_post(place: str,
                          crisis_event: str,
                          lat: float,
-                         lon: float) -> str:
+                         lon: float,
+                         Amenities: str) -> str:
     """
     Create 3–4 urgent first‑person sentences describing the crisis.
     """
     prompt = f"""
-      You are a resident of Hamburg, live-posting on social media.
+      You are a Hamburg resident live-posting on social media.
 
-      A **{crisis_event}** is happening near **{place}** (latitude: {lat:.5f}, longitude: {lon:.5f}).
+      A **{crisis_event}** is unfolding near **{place}**. There are several amenities: {Amenities} in this area — please make sure your description stays **within the vicinity of this location**, based on these surroundings.
+
       Write a short and urgent **first-person** social media post in **English**, consisting of **3 to 4 vivid, emotional sentences**.
 
-      Include a **clear reference to the location** in the style of German addresses. Internally follow this structured hierarchy for reference only:
+      Make sure a **clear reference to the location** in the style of German addresses. Internally follow this structured hierarchy for reference only:
       - Street_or_Landmark (e.g., "Achtern Born")
       - District_or_Suburb (e.g., "Osdorf")
       - City_District (e.g., "Altona")
       - City = "Hamburg"
 
       Do **not** output the address structure itself — just write the **natural post** as a local would. Focus on **urgency, chaos, atmosphere, and personal reaction**. 
-      Sound natural, realistic, and emotionally expressive.
+      Sound natural, realistic, and emotionally expressive
+
       """
 
     response = client.chat.completions.create(
