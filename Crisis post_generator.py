@@ -72,11 +72,11 @@ df["Crisis_Post"] = posts
 
 
 
-# ===== 3. Example DataFrame (`df`) should contain the following columns =====
-# df = pd.read_csv("your_locations.csv")  # Or load it any way you prefer
-# Required columns: Latitude, Longitude, Place, Crisis_Event
+# ===== 3. 範例 DataFrame (`df`) 應包含下列欄位 =====
+# df = pd.read_csv("your_locations.csv")  # 或任何方式載入
+# 必須具備：Latitude, Longitude, Place, Crisis_Event
 
-# ===== 4. Run the generation in batch and add a new column =====
+# ===== 4. 實際批次呼叫並新增新欄位 =====
 posts = []
 for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
     try:
@@ -85,19 +85,21 @@ for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
             crisis_event = row["Crisis_Event"],
             lat          = row["Latitude"],
             lon          = row["Longitude"],
+            Amenities    = row["Amenities"]
         )
     except Exception as e:
-        # If API times out or quota exceeded, handle it here (e.g., retry or assign an empty string)
+        # 若 API 超時或配額不足，可在這裡做重試或填入空字串
         print(f"⚠️  Row {_}: {e}")
         post_text = ""
     posts.append(post_text)
-    time.sleep(0.4)  # Adjust as needed to avoid rate limits
+    time.sleep(0.4)     # 視情況調整，避免触發速度限制
 
 df["Crisis_Post"] = posts
 
-# Extract text after </think> (specific to Qwen model output)
+# Extract text after </think>
 df["Crisis_Post"] = df["Crisis_Post"].apply(lambda x: x.split("</think>", 1)[-1] if isinstance(x, str) and "</think>" in x else x)
 
-# ===== 5. (Optional) Save or view =====
+
+# ===== 5. (可選) 儲存或檢視 =====
 df.to_excel("locations_with_posts.xlsx", index=False)
 df.head()
