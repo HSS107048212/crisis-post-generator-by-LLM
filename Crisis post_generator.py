@@ -17,17 +17,13 @@ def generate_crisis_post(place: str,
                          lat: float,
                          lon: float) -> str:
     """
-    Generate 3–4 short urgent social media sentences using the LLM
-    based on a specified place, event, and coordinates.
-    Returns plain text.
+    Create 3–4 urgent first‑person sentences describing the crisis.
     """
-    # Example uses German; you can switch to Traditional Chinese or English
     prompt = (
-        f"Du bist eine Hamburger*in, die gerade live in den sozialen Medien postet. "
-        f"In der Nähe von {place} (Koordinaten: {lat:.5f}, {lon:.5f}) "
-        f"findet ein(e) {crisis_event} statt. "
-        f"Schreibe in der Ich‑Form 3–4 kurze, dringliche Sätze, "
-        f"um die Situation zu beschreiben."
+        f"You are a Hamburg resident live‑posting on social media. "
+        f"A {crisis_event} is unfolding near {place} "
+        f"(coordinates: {lat:.5f}, {lon:.5f}). "
+        f"Write 3–4 short, urgent sentences in the first person to describe the situation."
     )
 
     response = client.chat.completions.create(
@@ -35,8 +31,8 @@ def generate_crisis_post(place: str,
         messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
     )
-
     return response.choices[0].message.content.strip()
+
 
 # ===== 3. Example DataFrame (`df`) should contain the following columns =====
 # df = pd.read_csv("your_locations.csv")  # Or load it any way you prefer
