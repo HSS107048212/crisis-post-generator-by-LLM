@@ -20,21 +20,20 @@ def generate_crisis_post(place: str,
     Create 3–4 urgent first‑person sentences describing the crisis.
     """
     prompt = f"""
-        You are a Hamburg resident live‑posting on social media.
-        A {crisis_event} is unfolding near {place} (coordinates: {lat:.5f}, {lon:.5f}).
-        Write 3–4 short, urgent sentences in the first person to describe the situation.
+      You are a resident of Hamburg, live-posting on social media.
 
-        During parsing, please follow German addresses into structured components:
-        1. "Street_or_Landmark": The most specific location such as a street name, square, or known landmark (e.g., "Achtern Born", "Waltershofer Damm", "Am Stadtrand").
-        2. "District_or_Suburb": The local subdistrict or neighborhood within the city (e.g., "Osdorf", "Sasel", "Waltershof").
-        3. "City_District": The city district name within larger cities such as Hamburg (e.g., "Altona", "Wandsbek", "Hamburg-Mitte").
-        4. "City": The main city name (e.g., "Hamburg").
-        5. "Postal_Code": The 5-digit German postal code (e.g., "22393", "21037").
-        6. "Country": Always return "Deutschland".
+      A **{crisis_event}** is happening near **{place}** (latitude: {lat:.5f}, longitude: {lon:.5f}).
+      Write a short and urgent **first-person** social media post in **English**, consisting of **3 to 4 vivid, emotional sentences**.
 
-        Example input:
-        "Redder, Sasel, Wandsbek, Hamburg, 22393, Deutschland" 
-        """
+      Include a **clear reference to the location** in the style of German addresses. Internally follow this structured hierarchy for reference only:
+      - Street_or_Landmark (e.g., "Achtern Born")
+      - District_or_Suburb (e.g., "Osdorf")
+      - City_District (e.g., "Altona")
+      - City = "Hamburg"
+
+      Do **not** output the address structure itself — just write the **natural post** as a local would. Focus on **urgency, chaos, atmosphere, and personal reaction**. 
+      Sound natural, realistic, and emotionally expressive.
+      """
 
     response = client.chat.completions.create(
         model=model,
@@ -42,6 +41,32 @@ def generate_crisis_post(place: str,
         temperature=temperature,
     )
     return response.choices[0].message.content.strip()
+
+
+
+# ===== 3. 範例 DataFrame (`df`) 應包含下列欄位 =====
+# df = pd.read_csv("your_locations.csv")  # 或任何方式載入
+# 必須具備：Latitude, Longitude, Place, Crisis_Event
+
+# ===== 4. 實際批次呼叫並新增新欄位 =====
+posts = []
+for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
+    try:
+        post_text = generate_crisis_post(
+            place        = row["Place"],
+            crisis_event = row["Crisis_Event"],
+            lat          = row["Latitude"],
+            lon          = row["Longitude"],
+        )
+    except Exception as e:
+        # 若 API 超時或配額不足，可在這裡做重試或填入空字串
+        print(f"⚠️  Row {_}: {e}")
+        post_text = ""
+    posts.append(post_text)
+    time.sleep(0.4)     # 視情況調整，避免触發速度限制
+
+df["Crisis_Post"] = posts
+
 
 
 # ===== 3. Example DataFrame (`df`) should contain the following columns =====
