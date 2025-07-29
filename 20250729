@@ -1,0 +1,229 @@
+import random
+import time
+import re
+import requests
+import pandas as pd
+from openai import OpenAI
+from tqdm.auto import tqdm
+
+# ---------------------- 基本參數設定 ----------------------
+HEADERS = {"User-Agent": "hamburg-crisis-bot/1.0"}
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup"
+CRISIS_EVENTS = ["flood", "fire", "protest", "blackout"]
+
+# 漢堡市區地理範圍（可調整）
+MIN_LAT, MAX_LAT = 53.45, 53.65
+MIN_LON, MAX_LON = 9.8, 10.3
+
+# OpenAI API 設定（使用 GWDG 提供的 Chat API）
+client = OpenAI(
+    api_key="923a50a26293c4b70d4ba05e4642b5ca",
+    base_url="https://chat-ai.academiccloud.de/v1"
+)
+model = "qwen3-32b"
+temperature = 0.8
+
+# ---------------------- 工具函數 ----------------------
+def clean_place(text):
+    text = re.sub(r",\s*\d{5}", "", text)
+    text = re.sub(r",\s*Deutschland", "", text)
+    return text.strip()
+
+def clean_amenities(text):
+    time.sleep(1)
+    items = text.split(";")
+    named, unnamed = [], []
+    for item in items:
+        item = item.strip()
+        if match := re.match(r"(.+?) \((.+?)\)", item):
+            name, category = match.groups()
+            if name == "[Unnamed]":
+                unnamed.append(category)
+            else:
+                named.append(f"{name} ({category})")
+    return "; ".join(named) if named else "; ".join(unnamed)
+
+# ---------------------- 地理查詢 ----------------------
+def reverse_geocode(lat, lon):
+    response = requests.get(NOMINATIM_URL, params={
+        "lat": lat,
+        "lon": lon,
+        "format": "json",
+        "zoom": 17,
+        "addressdetails": 1
+    }, headers=HEADERS)
+    return response.json()
+
+def get_elevation(lat, lon):
+    response = requests.get(f"{ELEVATION_URL}?locations={lat},{lon}")
+    result = response.json()
+    return result['results'][0]['elevation']
+
+def overpass_query(lat, lon, feature):
+    if feature == "mountain":
+        query = f"""
+        [out:json][timeout:25];
+        (node(around:3000,{lat},{lon})["natural"~"peak|hill"];
+         way(around:3000,{lat},{lon})["natural"~"peak|hill"];
+        );
+        out center;
+        """
+    elif feature == "water":
+        query = f"""
+        [out:json][timeout:25];
+        (node(around:3000,{lat},{lon})["natural"~"coastline|bay|beach|water|sea"];
+         way(around:3000,{lat},{lon})["natural"~"coastline|bay|beach|water|sea"];
+         relation(around:3000,{lat},{lon})["natural"~"coastline|bay|beach|water|sea"];
+        );
+        out center;
+        """
+    else:
+        return []
+    response = requests.post(OVERPASS_URL, data=query)
+    return response.json().get("elements", [])
+
+# ---------------------- 地點分析 ----------------------
+def analyze_location(lat, lon):
+        # 地名查詢
+    location_info = reverse_geocode(lat, lon)
+    display_name = location_info.get('display_name', '未知地名')
+    #print(f"📌 地點名稱：{display_name}")
+
+    # 高度查詢
+    elevation = get_elevation(lat, lon)
+    #print(f"⛰️ 海拔高度：約 {elevation} 公尺")
+
+    # 查附近是否有山
+    mountains = overpass_query(lat, lon, "mountain")
+    has_mountain = len(mountains) > 0
+    #print(f"🏔️ 是否靠山：{'✅ 有' if has_mountain else '❌ 無'}")
+
+    # 查附近是否有海或水域
+    waters = overpass_query(lat, lon, "water")
+    has_water = len(waters) > 0
+    #print(f"🌊 是否靠海或水域：{'✅ 有' if has_water else '❌ 無'}")
+
+    #print("\n📋 判斷結果：")
+    #print(f" - 地點：{display_name}")
+    #print(f" - 海拔：約 {elevation} m")
+    #print(f" - 靠山：{'是' if has_mountain else '否'}")
+    #print(f" - 靠海／水域：{'是' if has_water else '否'}")
+
+    return {
+    "Location": display_name,
+    "Elevation_m": elevation,
+    "Near_Mountain": "Yes" if has_mountain else "No",
+    "Near_Water": "Yes" if has_water else "No",
+    "Raw_Location_Info": location_info
+}
+
+# ---------------------- 基礎設施查詢 ----------------------
+def get_nearby_amenities(lat, lon):
+    query = f"""
+    [out:json][timeout:25];
+    (
+      node(around:1000,{lat},{lon})["amenity"];
+      way(around:1000,{lat},{lon})["amenity"];
+      relation(around:1000,{lat},{lon})["amenity"];
+    );
+    out center 10;
+    """
+    try:
+        response = requests.post(OVERPASS_URL, data=query, headers=HEADERS)
+        response.raise_for_status()
+        data = response.json()
+        amenities = []
+        for el in data.get("elements", []):
+            tags = el.get("tags", {})
+            name = tags.get("name")
+            category = tags.get("amenity")
+            if name:
+                amenities.append(f"{name} ({category})")
+            elif category:
+                amenities.append(f"[Unnamed] ({category})")
+            if len(amenities) >= 10:
+                break
+        return amenities
+    except Exception as e:
+        return [f"Error fetching amenities: {e}"]
+
+# ---------------------- 貼文生成 ----------------------
+def generate_crisis_post(place, crisis_event, lat, lon, Amenities, Resources):
+    prompt = f"""
+    You are a Hamburg resident live-posting on social media.
+
+    A **{crisis_event}** is unfolding near **{place}**. There are several amenities: {Amenities} in this area — please make sure your description stays **within the vicinity of this location**, based on these surroundings.
+
+    Write a short and urgent **first-person** social media post in **English**, consisting of **3 to 4 vivid, emotional sentences**.
+    Make sure a **clear reference to the location** in the style of German addresses (but don't include the structure directly). Focus on urgency, chaos, atmosphere, and personal reaction.
+    """
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=temperature,
+    )
+    return response.choices[0].message.content.strip()
+
+# ---------------------- 模擬危機資料 ----------------------
+def generate_random_crisis_data(num_points=5):
+    results = []
+    for i in range(num_points):
+        lat = round(random.uniform(MIN_LAT, MAX_LAT), 6)
+        lon = round(random.uniform(MIN_LON, MAX_LON), 6)
+        try:
+            place_raw = reverse_geocode(lat, lon).get("display_name", "未知地點")
+            place = clean_place(place_raw)
+        except:
+            place = "查詢失敗"
+
+        crisis = random.choice(CRISIS_EVENTS)
+        amenities = get_nearby_amenities(lat, lon)
+        amenities_clean = clean_amenities("; ".join(amenities))
+        resources = analyze_location(lat, lon)
+
+        results.append({
+            "Index": i + 1,
+            "Latitude": lat,
+            "Longitude": lon,
+            "Place": place,
+            "Crisis_Event": crisis,
+            "Amenities": amenities_clean,
+            "Resources": resources
+        })
+        print(f"[{i+1}/{num_points}] {place} - {crisis}")
+        time.sleep(1)
+    return pd.DataFrame(results)
+
+# ---------------------- 批次貼文生成 ----------------------
+def batch_generate_crisis_posts(df):
+    posts = []
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Generating posts"):
+        try:
+            post = generate_crisis_post(
+                place=row["Place"],
+                crisis_event=row["Crisis_Event"],
+                lat=row["Latitude"],
+                lon=row["Longitude"],
+                Amenities=row["Amenities"],
+                Resources=row["Resources"]
+            )
+        except Exception as e:
+            print(f"⚠️ Error at row {_}: {e}")
+            post = ""
+        posts.append(post)
+        time.sleep(0.4)
+    df["Crisis_Post"] = posts
+    return df
+
+# Main Function
+df = generate_random_crisis_data(3)
+df = batch_generate_crisis_posts(df)
+# Extract text after </think>
+df["Crisis_Post"] = df["Crisis_Post"].apply(lambda x: x.split("</think>", 1)[-1] if isinstance(x, str) and "</think>" in x else x)
+
+
+# ===== 5. (可選) 儲存或檢視 =====
+df.to_excel("locations_with_posts.xlsx", index=False)
+df
