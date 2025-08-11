@@ -20,10 +20,10 @@ data = {
     }
 }
 
+```
+
 * T1, T2, T... are gold answers.
 * NER_T1, NER_T2, NER_T... are Predicted answers.
-
-```
 
 ## Objective
 
