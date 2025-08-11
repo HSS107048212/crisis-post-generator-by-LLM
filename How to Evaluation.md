@@ -1,16 +1,40 @@
 # Evaluating Entity Matching with Fuzzy Similarity
 
-## Slide 1 – Objective
+```text
+
+data = { 
+    "901958356973301760": {
+        "text": "#Houston #HoustonFlood the intersection of I-45 &amp; N. Main Street https://t.co/jBPxoS4ub7",
+        "T1": {"text": "I-45", "class": "highway"},
+        "T2": {"text": "N. Main Street", "class": "highway"},
+        "NER_T1": {"text": "Houston", "class": "LOC"},
+        "NER_T2": {"text": "I - 45", "class": "LOC"},
+        "NER_T3": {"text": "N", "class": "LOC"},
+        "NER_T4": {"text": "Main Street", "class": "LOC"}
+    },
+    "901431863536996352": {
+        "text": "#HarveyStorm over Austin, TX at 8:00 AM CDT via Weather Underground https://t.co/rbb1kU3FjM",
+        "T1": {"text": "Austin", "class": "boundary"},
+        "NER_T1": {"text": "Austin", "class": "LOC"},
+        "NER_T2": {"text": "TX", "class": "LOC"}
+    }
+}
+
+* T1, T2, T... are gold answers.
+* NER_T1, NER_T2, NER_T... are Predicted answers.
+
+```
+
+## Objective
 
 **Evaluating Entity Matching with Fuzzy Similarity**
 
 - **Goal:** Compare predicted entities from a model with ground truth entities using fuzzy matching.
-- **Data Source:** Example tweets with annotated ground truth (`T1`, `T2`, …) and model predictions (`NER_T1`, `NER_T2`, …).
-- **Evaluation Method:** Entity-level matching, no TN counted.
+- **Data Source:** Example tweets with annotated ground gold answers (`T1`, `T2`, …) and model predictions (`NER_T1`, `NER_T2`, …).
 
 ---
 
-## Slide 2 – Step 1: Build Comparable Sets
+## Step 1: Build Comparable Sets
 
 **Ground Truth Set (golds):** Keys starting with `T` but not `NER_`  
 Example:  
@@ -26,7 +50,7 @@ Example:
 
 ---
 
-## Slide 3 – Step 2: Normalize and Compute Similarity
+## Step 2: Normalize and Compute Similarity
 
 **Normalization:**
 1. Convert to lowercase.
@@ -41,7 +65,7 @@ Example:
 
 ---
 
-## Slide 4 – Step 3: Greedy Matching
+## Step 3: Greedy Matching
 
 **Process:**
 1. For every prediction–truth pair:  
@@ -59,7 +83,7 @@ Example:
 
 ---
 
-## Slide 5 – Example: Post `901958356973301760`
+## Example01: Post `901958356973301760`
 
 **Ground Truths:**  
 ```text
@@ -82,7 +106,7 @@ Example:
 
 ---
 
-## Slide 6 – Example: Post `901431863536996352`
+## Example02: Post `901431863536996352`
 
 **Ground Truths:**  
 ```text
@@ -104,7 +128,7 @@ Example:
 
 ---
 
-## Slide 7 – Totals Across All Posts
+## Totals Across All Posts
 
 - **True Positives (TP):** 2 (Post 1) + 1 (Post 2) = **3**
 - **False Positives (FP):** 2 (Post 1) + 1 (Post 2) = **3**
@@ -112,7 +136,7 @@ Example:
 
 ---
 
-## Slide 8 – Metrics Calculation
+## Metrics Calculation
 
 **Precision**  
 \[
@@ -135,13 +159,3 @@ F1 = \frac{2 \times 0.5 \times 1.0}{0.5 + 1.0} = 0.6667
 \]
 
 ---
-
-## Slide 9 – Why No TN
-
-**True Negative (TN):**  
-Cases where both truth and prediction are “not an entity.”
-
-**In entity-level evaluation:**
-- We do not enumerate all possible non-entity spans.
-- Non-entities vastly outnumber entities → TN not defined.
-- Hence, **accuracy** is based only on **(TP + FP + FN)**.
