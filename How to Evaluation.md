@@ -136,8 +136,6 @@ Example:
 
 ---
 
-## Metrics Calculation
-
 **Precision**  
 \[
 \text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}} = \frac{3}{3 + 3} = 0.5
@@ -153,9 +151,10 @@ Example:
 F1 = \frac{2 \times 0.5 \times 1.0}{0.5 + 1.0} = 0.6667
 \]
 
-**Entity Accuracy** (no TN counted)  
+**Entity Accuracy**（no TN counted）  
 \[
 \text{Accuracy} = \frac{\text{TP}}{\text{TP} + \text{FP} + \text{FN}} = \frac{3}{3 + 3 + 0} = 0.5
 \]
+
 
 ---
