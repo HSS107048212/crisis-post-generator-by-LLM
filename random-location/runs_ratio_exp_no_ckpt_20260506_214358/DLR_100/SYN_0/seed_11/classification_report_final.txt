@@ -1,0 +1,7 @@
+              precision    recall  f1-score   support
+
+    location     0.7016    0.7659    0.7323      2179
+
+   micro avg     0.7016    0.7659    0.7323      2179
+   macro avg     0.7016    0.7659    0.7323      2179
+weighted avg     0.7016    0.7659    0.7323      2179
